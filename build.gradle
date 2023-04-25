@@ -1,0 +1,149 @@
+//buildscript 配置块是用来定义 Gradle 构建脚本本身所需的依赖项和类路径的
+//通常情况下，这些依赖项是用来支持构建过程中使用的插件和其他工具
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.0.2'
+    }
+}
+
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.10'
+    id 'org.beryx.jlink' version '2.24.1'
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+group 'com.tb'
+version '1.0-SNAPSHOT'
+
+//在build.gradle文件中使用ext，可以定义一些全局变量或者常量，以供后续的任务或插件使用
+ext {
+    junitVersion = '5.8.2'
+    javafxVersion = '17.0.1'
+}
+
+//用于指定编译源代码时使用的 JDK 版本
+sourceCompatibility = '17'
+//用于指定生成的字节码的兼容性版本
+targetCompatibility = '17'
+
+//所有类型为JavaCompile的任务设置编译选项，将编译选项中的编码设置为UTF-8
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+//用于配置plugins中的插件   id 'application'
+application {
+    //主模块
+    mainModule = 'com.tb.calculator'
+    //主类
+    mainClass = 'com.tb.calculator.StartApp'
+}
+
+javafx {
+    version = '17.0.1'
+    modules = ['javafx.controls', 'javafx.fxml']
+}
+
+dependencies {
+    implementation('org.kordamp.bootstrapfx:bootstrapfx-core:0.4.0')
+
+    runtimeClasspath("org.openjfx:javafx-controls:$javafxVersion")
+    runtimeClasspath("org.openjfx:javafx-fxml:$javafxVersion")
+
+    testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
+}
+
+test {
+    useJUnitPlatform()
+}
+
+jlink {
+    imageZip = project.file("${buildDir}/distributions/app-${javafx.platform.classifier}.zip")
+    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+    launcher {
+        name = 'app'
+    }
+}
+
+jlinkZip {
+    group = 'distribution'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.tb.calculator.StartApp'
+        attributes 'Class-Path': configurations.runtimeClasspath.files.collect { "./lib/${it.name}" }.join(' ')
+    }
+    into('lib') {
+        from configurations.runtimeClasspath
+    }
+}
+
+task baseTask {
+    group('tbtest')
+    doLast {
+        println 'basTask is running'
+    }
+}
+
+//在 Gradle 中，可以使用 task 方法来创建任务。该方法接受一个闭包参数，用于对任务进行配置
+task printDependencies {
+    //group: 定义任务所属的分组。可以通过 Gradle 的 tasks 命令来查看任务列表，分组可以让任务列表更加有组织性
+    group('tbtest')
+    //description: 定义任务的描述信息。可以通过 Gradle 的 tasks 命令来查看任务列表，描述信息可以让用户更好地了解任务的作用
+    description('print all configuration in this project')
+    //dependsOn: 定义任务依赖关系。如果任务 A 依赖于任务 B，那么执行任务 A 时会自动先执行任务 B
+    dependsOn(baseTask)
+    //doFirst: 定义任务执行前需要执行的操作
+    doFirst {
+        println 'doFirst'
+    }
+    doLast {
+//        Gradle 中的内置对象主要有以下几种：
+//        project：表示当前项目对象，可以通过它来获取项目的各种属性和方法
+//        task：表示当前任务对象，可以通过它来获取任务的各种属性和方法
+//        logger：表示 Gradle 的日志记录器对象，可以使用它来输出日志信息
+//        file：表示文件对象，可以使用它来创建、读取和操作文件
+//        configurations：表示当前项目中的依赖配置，可以通过它来获取依赖配置中的依赖关系
+//        gradle：表示 Gradle 运行时对象，可以使用它来获取 Gradle 的各种属性和方法
+//        java：表示 Java 插件的配置对象，可以通过它来配置 Java 项目的编译、打包等任务
+//        maven：表示 Maven 插件的配置对象，可以通过它来配置 Maven 项目的发布任务等
+//        artifacts：表示当前项目的输出文件，可以通过它来将项目构建输出的文件添加到指定的 Maven 仓库中
+//        extensions：表示 Gradle 的扩展对象，可以通过它来扩展 Gradle 的功能
+        configurations.each { config ->
+            println "Configuration: ${config.name}"
+            config.dependencies.each { dep ->
+                println " - ${dep.group}:${dep.name}:${dep.version}"
+            }
+        }
+    }
+    //inputs: 定义任务的输入文件或输入属性。如果输入文件或属性发生变化，那么任务会重新执行
+    //outputs: 定义任务的输出文件或输出属性。如果输出文件或属性已经存在，那么任务会跳过
+    //enabled: 定义任务是否可用。如果设置为 false，那么任务不会被执行
+    enabled(true)
+}
+
+task printProjectInfo {
+    group = 'tbtest'
+    description = 'print all project info'
+    doLast {
+        println "group: ${project.group}"
+        println "description: ${project.description}"
+        println "version: ${project.version}"
+        println "path: ${project.path}"
+        println "projectDir: ${project.projectDir}"
+        println "buildDir: ${project.buildDir}"
+        println "project: ${project.rootProject}"
+    }
+}
